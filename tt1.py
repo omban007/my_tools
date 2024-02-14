@@ -1,76 +1,68 @@
 import tkinter as tk
-import tkinter.ttk as ttk
+import pyperclip
+from tkinter import ttk
 
 
 class ClipboardHistoryApp:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Clipboard History")
+    def __init__(self, master):
+        self.master = master
+        self.master.title("Clipboard History")
+        self.clipboard_list = []
 
-        self.clipboard_history = []
+        self.style = ttk.Style()
+        self.style.configure("TListbox", font=("Helvetica", 12), background="#f0f0f0")
 
-        # Create a Listbox to display clipboard history
-        self.listbox = tk.Listbox(root, selectmode=tk.SINGLE)
-        self.listbox.pack(fill=tk.BOTH, expand=True)
+        self.listbox = tk.Listbox(self.master, selectmode=tk.SINGLE, height=10)
+        self.listbox.pack(pady=20)
 
-        # Create a Paste button to paste the selected item
-        paste_button = ttk.Button(root, text="Paste", command=self.paste_selected)
-        paste_button.pack(pady=5)
+        self.listbox.bind("<ButtonRelease-1>", self.copy_selected)
 
-        # Create a Clear button to clear the clipboard history
-        clear_button = ttk.Button(root, text="Clear History", command=self.clear_history)
-        clear_button.pack(pady=5)
+        # Bind events for hiding and showing the window
+        self.master.bind("<Enter>", self.show_window)
+        self.master.bind("<Leave>", self.hide_window)
 
-        # Update the clipboard history when the application starts
-        self.update_history()
+        self.update_clipboard_list()
+        self.master.after(1000, self.check_clipboard)
 
-        # Monitor clipboard changes
-        self.root.after(1000, self.monitor_clipboard)
+    def update_clipboard_list(self):
+        clipboard_data = pyperclip.paste()
+        if clipboard_data and clipboard_data not in self.clipboard_list:
+            self.clipboard_list.insert(0, clipboard_data)
+            self.listbox.delete(0, tk.END)
+            for item in self.clipboard_list:
+                self.listbox.insert(tk.END, item)
+        self.master.after(1000, self.update_clipboard_list)
 
-    def update_history(self):
-        # Clear the Listbox
-        self.listbox.delete(0, tk.END)
+    def check_clipboard(self):
+        current_clipboard = pyperclip.paste()
+        if current_clipboard != self.clipboard_list[0]:
+            self.clipboard_list.insert(0, current_clipboard)
+            self.listbox.insert(0, current_clipboard)
+        self.master.after(1000, self.check_clipboard)
 
-        # Add items from the clipboard history to the Listbox
-        for item in reversed(self.clipboard_history):
-            self.listbox.insert(0, item)
-
-    def clear_history(self):
-        # Clear the clipboard history
-        self.clipboard_history = []
-        self.update_history()
-
-    def paste_selected(self):
-        # Get the selected item from the Listbox
+    def copy_selected(self, event):
         selected_index = self.listbox.curselection()
         if selected_index:
-            selected_item = self.clipboard_history[selected_index[0]]
+            selected_text = self.listbox.get(selected_index)
+            pyperclip.copy(selected_text)
 
-            # Put the selected item back into the clipboard
-            self.root.clipboard_clear()
-            self.root.clipboard_append(selected_item)
-            self.root.update()
+    def show_window(self, event):
+        root.attributes("-alpha", 1)
+        root.geometry("100x200+1410+300")
+        # self.master.deiconify()  # Unhide the window
 
-    def monitor_clipboard(self):
-        # Get the current clipboard content
-        current_clipboard = self.root.clipboard_get()
-
-        # Check if the clipboard content is different from the last item in history
-        if current_clipboard and (not self.clipboard_history or current_clipboard != self.clipboard_history[0]):
-            # Add the current clipboard content to the history
-            self.clipboard_history.insert(0, current_clipboard)
-
-            # Limit the clipboard history to a certain number of items (e.g., 10)
-            self.clipboard_history = self.clipboard_history[:10]
-
-            # Update the Listbox
-            self.update_history()
-
-        # Schedule the next check after 1000 milliseconds (1 second)
-        self.root.after(1000, self.monitor_clipboard)
+    def hide_window(self, event):
+        root.attributes("-alpha", 0.2)
+        root.geometry("100x80+1410+300")
+        # self.master.withdraw()  # Hide the window
 
 
 if __name__ == "__main__":
     root = tk.Tk()
+    root.attributes('-topmost', True)
+    root.geometry("100x200+1410+300")
+    root.attributes("-alpha", 0.1)
+    # root.resizable(False, False)
+    # root.overrideredirect(True) # TODO enable this once all coding done
     app = ClipboardHistoryApp(root)
     root.mainloop()
